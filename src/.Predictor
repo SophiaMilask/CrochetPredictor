@@ -1,0 +1,120 @@
+package com.crochetpredictor.prediction;
+
+import com.crochetpredictor.data.UserData;
+import com.crochetpredictor.model.StitchingData;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class Predictor {
+    private final UserData userData;
+
+    // Multipliers for stitch type (relative to SC)
+    private static final Map<String, Double> STITCH_MULTIPLIERS = new HashMap<>();
+
+    static {
+        STITCH_MULTIPLIERS.put("SC", 1.0);
+        STITCH_MULTIPLIERS.put("HDC", 1.5);
+        STITCH_MULTIPLIERS.put("DC", 2.0);
+        STITCH_MULTIPLIERS.put("TC", 2.5);
+    }
+
+    public Predictor(UserData userData) {
+        this.userData = userData;
+    }
+
+    // Stitch type multiplier
+    private double getStitchMultiplier(String stitchType) {
+        return STITCH_MULTIPLIERS.getOrDefault(stitchType.toUpperCase(), 1.0);
+    }
+
+    // Yarn weight multiplier: heavier yarn may slightly reduce stitches per inch but could increase yarn usage
+    private double getYarnMultiplier(int yarnWeight) {
+        // Base weight 4; each step above/below adjusts by 5%
+        return 1.0 + (yarnWeight - 4) * 0.05;
+    }
+
+    public double predictSecondsPerStitch(String stitchType, int yarnWeight) {
+        List<StitchingData> matches = userData.findBy(stitchType, yarnWeight);
+
+        if (matches.isEmpty()) {
+            matches = userData.findByYarnWeight(yarnWeight);
+            if (matches.isEmpty()) return defaultSecondsPerStitch(stitchType) * getStitchMultiplier(stitchType) * getYarnMultiplier(yarnWeight);
+        }
+
+        double totalSeconds = 0;
+        double totalStitches = 0;
+        for (StitchingData r : matches) {
+            totalSeconds += r.getTimeSeconds();
+            totalStitches += r.getStitches();
+        }
+
+        double baseSecPer = totalStitches > 0 ? totalSeconds / totalStitches : defaultSecondsPerStitch(stitchType);
+
+        return baseSecPer * getStitchMultiplier(stitchType) * getYarnMultiplier(yarnWeight);
+    }
+
+    public double predictTimeSeconds(String stitchType, int yarnWeight, int totalStitches) {
+        double secPer = predictSecondsPerStitch(stitchType, yarnWeight);
+        return secPer * totalStitches;
+    }
+
+    public double predictAreaPerStitch(String stitchType, int yarnWeight) {
+        List<StitchingData> matches = userData.findBy(stitchType, yarnWeight);
+        if (matches.isEmpty()) matches = userData.findByYarnWeight(yarnWeight);
+
+        double totalArea = 0;
+        double totalStitches = 0;
+        for (StitchingData r : matches) {
+            totalArea += r.getArea();
+            totalStitches += r.getStitches();
+        }
+
+        double baseAreaPer = totalStitches > 0 ? totalArea / totalStitches : defaultAreaPerStitch(stitchType);
+
+        return baseAreaPer * getStitchMultiplier(stitchType) * getYarnMultiplier(yarnWeight);
+    }
+
+    public double predictArea(String stitchType, int yarnWeight, int totalStitches) {
+        return predictAreaPerStitch(stitchType, yarnWeight) * totalStitches;
+    }
+
+    public double predictYardsPerStitch(String stitchType, int yarnWeight) {
+        List<StitchingData> matches = userData.findBy(stitchType, yarnWeight);
+        if (matches.isEmpty()) matches = userData.findByYarnWeight(yarnWeight);
+
+        double totalYards = 0;
+        double totalStitches = 0;
+        for (StitchingData r : matches) {
+            totalYards += r.getYarnYards();
+            totalStitches += r.getStitches();
+        }
+
+        double baseYardsPer = totalStitches > 0 ? totalYards / totalStitches : 0.05; // default fallback
+
+        return baseYardsPer * getStitchMultiplier(stitchType) * getYarnMultiplier(yarnWeight);
+    }
+
+    public double predictYarnYards(String stitchType, int yarnWeight, int totalStitches) {
+        return predictYardsPerStitch(stitchType, yarnWeight) * totalStitches;
+    }
+
+    public double predictWidthFromAcross(double area, int stitchesAcross, int totalStitches) {
+        double ratio = (double) stitchesAcross / totalStitches;
+        return Math.sqrt(area * ratio);
+    }
+
+    public double predictHeightFromWidth(double area, double width) {
+        if (width == 0) return 0;
+        return area / width;
+    }
+
+    private double defaultSecondsPerStitch(String stitchType) {
+        return 1.0;
+    }
+
+    private double defaultAreaPerStitch(String stitchType) {
+        return 0.05;
+    }
+}
