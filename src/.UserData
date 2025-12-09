@@ -1,0 +1,83 @@
+package com.crochetpredictor.data;
+
+import com.crochetpredictor.model.StitchingData;
+
+import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class UserData {
+    private final List<StitchingData> records = new ArrayList<>();
+    private static final String FILE_PATH = "crochet_data.csv";
+
+    public void addRecord(StitchingData r) {
+        records.add(r);
+        saveToFile(); 
+    }
+
+    public List<StitchingData> getAllRecords() {
+        return records;
+    }
+
+    public List<StitchingData> findBy(String stitchType, int yarnWeight) {
+        List<StitchingData> out = new ArrayList<>();
+        for (StitchingData r : records) {
+            if (r.getStitchType().equalsIgnoreCase(stitchType) && r.getYarnWeight() == yarnWeight) {
+                out.add(r);
+            }
+        }
+        return out;
+    }
+
+    public List<StitchingData> findByYarnWeight(int yarnWeight) {
+        List<StitchingData> out = new ArrayList<>();
+        for (StitchingData r : records) {
+            if (r.getYarnWeight() == yarnWeight) out.add(r);
+        }
+        return out;
+    }
+
+    
+    public void loadFromFile() {
+        File file = new File(FILE_PATH);
+        if (!file.exists()) return;
+
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                
+                String[] parts = line.split(",");
+                if (parts.length != 6) continue;
+
+                String stitchType = parts[0];
+                int yarnWeight = Integer.parseInt(parts[1]);
+                int stitches = Integer.parseInt(parts[2]);
+                double area = Double.parseDouble(parts[3]);
+                double timeSeconds = Double.parseDouble(parts[4]);
+                double yarnYards = Double.parseDouble(parts[5]);
+
+                StitchingData data = new StitchingData(stitchType, yarnWeight, stitches, area, timeSeconds, yarnYards);
+                records.add(data);
+            }
+        } catch (IOException | NumberFormatException e) {
+            System.out.println("Error loading data: " + e.getMessage());
+        }
+    }
+
+   
+    private void saveToFile() {
+        try (PrintWriter pw = new PrintWriter(new FileWriter(FILE_PATH))) {
+            for (StitchingData r : records) {
+                pw.printf("%s,%d,%d,%.4f,%.4f,%.4f%n",
+                        r.getStitchType(),
+                        r.getYarnWeight(),
+                        r.getStitches(),
+                        r.getArea(),
+                        r.getTimeSeconds(),
+                        r.getYarnYards());
+            }
+        } catch (IOException e) {
+            System.out.println("Error saving data: " + e.getMessage());
+        }
+    }
+}
