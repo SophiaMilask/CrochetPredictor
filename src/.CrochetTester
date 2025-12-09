@@ -1,0 +1,165 @@
+import java.util.Scanner;
+import com.crochetpredictor.data.UserData;
+import com.crochetpredictor.model.StitchingData;
+import com.crochetpredictor.prediction.Predictor;
+
+public class CrochetTester {
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        UserData userData = new UserData();
+        userData.loadFromFile(); // Load existing data
+        Predictor predictor = new Predictor(userData);
+
+        System.out.println("*** CrochetPredict ***");
+
+        boolean running = true;
+        while (running) {
+            System.out.println("\nChoose an action:");
+            System.out.println("1 - Add measurement entry");
+            System.out.println("2 - Predict a new project");
+            System.out.println("3 - List entries");
+            System.out.println("4 - Exit");
+            System.out.print("Choice: ");
+
+            String choice = scanner.nextLine().trim();
+
+            switch (choice) {
+                case "1": addEntry(scanner, userData); break;
+                case "2": predictProject(scanner, predictor); break;
+                case "3": listEntries(userData); break;
+                case "4": 
+                    running = false;
+                    System.out.println("Goodbye!");
+                    break;
+                default: System.out.println("Invalid choice. Try 1-4.");
+            }
+        }
+
+        scanner.close();
+    }
+
+    // --- Add a new data entry with validation ---
+    private static void addEntry(Scanner scanner, UserData userData) {
+        System.out.println("\n--- Add a measurement entry ---");
+
+        int yarnWeight = readIntInRange(scanner, "Yarn weight (1 - 10): ", 1, 10);
+
+        String stitchType = readStitchType(scanner, "Stitch type (SC, HDC, DC, or TC): ");
+
+        int stitches = readPositiveInt(scanner, "Number of stitches: ");
+
+        double area = readPositiveDouble(scanner, "Area of project (square inches): ");
+
+        double timeSeconds = readPositiveDouble(scanner, "Time of project (seconds): ");
+
+        double yarnYards = readPositiveDouble(scanner, "Yards of yarn used: ");
+
+        StitchingData rec = new StitchingData(stitchType, yarnWeight, stitches, area, timeSeconds, yarnYards);
+        userData.addRecord(rec);
+
+        System.out.println("Saved entry: " + stitches + " " + stitchType + " stitches, " + area + " sq in, "
+                + timeSeconds + " s, " + yarnYards + " yards.");
+    }
+
+    // --- Predict a new project with validation ---
+    private static void predictProject(Scanner scanner, Predictor predictor) {
+        System.out.println("\n--- Predict a new project ---");
+
+        String stitchType = readStitchType(scanner, "Stitch type for project (SC, HDC, DC, or TC): ");
+
+        int yarnWeight = readIntInRange(scanner, "Yarn weight (1 - 10): ", 1, 10);
+
+        int totalStitches = readPositiveInt(scanner, "Number of stitches: ");
+
+        int stitchesAcross = readNonNegativeInt(scanner, "Optional — stitches across (enter 0 if unknown): ");
+
+        double predictedSeconds = predictor.predictTimeSeconds(stitchType, yarnWeight, totalStitches);
+        double predictedArea = predictor.predictArea(stitchType, yarnWeight, totalStitches);
+        double predictedYards = predictor.predictYarnYards(stitchType, yarnWeight, totalStitches);
+
+        System.out.printf("%nPrediction results:%n");
+        System.out.printf("Estimated time: %.2f seconds (%.2f minutes)%n", predictedSeconds, predictedSeconds / 60.0);
+        System.out.printf("Estimated finished area: %.2f square inches%n", predictedArea);
+        System.out.printf("Estimated yarn needed: %.2f yards%n", predictedYards);
+
+        if (stitchesAcross > 0) {
+            double width = predictor.predictWidthFromAcross(predictedArea, stitchesAcross, totalStitches);
+            double height = predictor.predictHeightFromWidth(predictedArea, width);
+            System.out.printf("Estimated dimensions (W x H): %.2f in x %.2f in (based on %d stitches across)%n",
+                    width, height, stitchesAcross);
+        }
+    }
+
+    // --- List all stored entries ---
+    private static void listEntries(UserData userData) {
+        System.out.println("\n--- Stored Entries ---");
+        int i = 1;
+        for (StitchingData r : userData.getAllRecords()) {
+            System.out.printf("%d: %s | yarn %d | stitches %d | area %.2f sqin | time %.2f s | yarn %.2f yards%n",
+                    i++,
+                    r.getStitchType(),
+                    r.getYarnWeight(),
+                    r.getStitches(),
+                    r.getArea(),
+                    r.getTimeSeconds(),
+                    r.getYarnYards());
+        }
+        if (i == 1) System.out.println("No entries stored yet.");
+    }
+
+    // --- Validation helpers ---
+
+    private static int readIntInRange(Scanner scanner, String prompt, int min, int max) {
+        int value = 0;
+        while (value < min || value > max) {
+            System.out.print(prompt);
+            try { value = Integer.parseInt(scanner.nextLine().trim()); }
+            catch (NumberFormatException e) { System.out.println("Invalid input. Enter an integer."); }
+            if (value < min || value > max) System.out.println("Input must be between " + min + " and " + max + ".");
+        }
+        return value;
+    }
+
+    private static int readPositiveInt(Scanner scanner, String prompt) {
+        int value = -1;
+        while (value <= 0) {
+            System.out.print(prompt);
+            try { value = Integer.parseInt(scanner.nextLine().trim()); }
+            catch (NumberFormatException e) { System.out.println("Invalid input. Enter a positive integer."); }
+        }
+        return value;
+    }
+
+    private static int readNonNegativeInt(Scanner scanner, String prompt) {
+        int value = -1;
+        while (value < 0) {
+            System.out.print(prompt);
+            try { value = Integer.parseInt(scanner.nextLine().trim()); }
+            catch (NumberFormatException e) { System.out.println("Invalid input. Enter 0 or a positive integer."); }
+        }
+        return value;
+    }
+
+    private static double readPositiveDouble(Scanner scanner, String prompt) {
+        double value = -1;
+        while (value <= 0) {
+            System.out.print(prompt);
+            try { value = Double.parseDouble(scanner.nextLine().trim()); }
+            catch (NumberFormatException e) { System.out.println("Invalid input. Enter a positive number."); }
+        }
+        return value;
+    }
+
+    private static String readStitchType(Scanner scanner, String prompt) {
+        String stitchType = "";
+        while (!stitchType.matches("(?i)SC|HDC|DC|TC")) {
+            System.out.print(prompt);
+            stitchType = scanner.nextLine().trim().toUpperCase();
+            if (!stitchType.matches("SC|HDC|DC|TC")) {
+                System.out.println("Invalid stitch type. Enter SC, HDC, DC, or TC.");
+            }
+        }
+        return stitchType;
+    }
+}
