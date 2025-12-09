@@ -1,1 +1,27 @@
+package com.crochetpredictor.model;
+
+public class StitchingData {
+    private final String stitchType;
+    private final int yarnWeight;
+    private final int stitches;
+    private final double area;        
+    private final double timeSeconds;
+    private final double yarnYards;
+
+    public StitchingData(String stitchType, int yarnWeight, int stitches, double area, double timeSeconds, double yarnYards) {
+        this.stitchType = stitchType;
+        this.yarnWeight = yarnWeight;
+        this.stitches = stitches;
+        this.area = area;
+        this.timeSeconds = timeSeconds;
+        this.yarnYards = yarnYards;
+    }
+
+    public String getStitchType() { return stitchType; }
+    public int getYarnWeight() { return yarnWeight; }
+    public int getStitches() { return stitches; }
+    public double getArea() { return area; }
+    public double getTimeSeconds() { return timeSeconds; }
+    public double getYarnYards() { return yarnYards; }
+}
 
